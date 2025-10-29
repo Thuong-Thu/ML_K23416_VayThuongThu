@@ -113,12 +113,12 @@ def cluster_customers_kmeans(k):
 
 app = Flask(__name__)
 
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     mode = request.form.get("mode", "cluster")
     result_df = pd.DataFrame()
     image = None
+    clusters = {}
     search_query = request.form.get("search", "").strip()
 
     if mode == "film":
@@ -137,6 +137,9 @@ def index():
             df = df[df['CustomerName'].str.lower().str.contains(search_query.lower()) |
                     df['CustomerID'].astype(str).str.contains(search_query)]
 
+        clusters = {cid: df[df['Cluster'] == cid] for cid in sorted(df['Cluster'].unique())}
+
+        # Biểu đồ scatter K-Means
         fig, ax = plt.subplots(figsize=(7, 5))
         ax.scatter(df['TotalRentals'], df['TotalPayment'], c=df['Cluster'], cmap='rainbow', s=60)
         ax.set_xlabel("Total Rentals")
@@ -146,7 +149,6 @@ def index():
         fig.savefig(buf, format="png")
         buf.seek(0)
         image = base64.b64encode(buf.read()).decode('utf-8')
-        result_df = df
 
     html = """
     <!DOCTYPE html>
@@ -167,6 +169,7 @@ def index():
                         <option value="category" {% if mode=='category' %}selected{% endif %}>Theo thể loại</option>
                     </select>
                 </div>
+
                 {% if mode == 'film' %}
                     <div class="col-md-4">
                         <input type="text" name="film_title" class="form-control" placeholder="Nhập tên phim..." value="{{ request.form.get('film_title','') }}">
@@ -183,6 +186,7 @@ def index():
                         <input type="text" name="search" class="form-control" placeholder="Tìm khách hàng theo tên hoặc ID..." value="{{ request.form.get('search','') }}">
                     </div>
                 {% endif %}
+
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100">Xem kết quả</button>
                 </div>
@@ -194,7 +198,29 @@ def index():
                 </div>
             {% endif %}
 
-            {% if not result_df.empty %}
+            {% if mode == 'cluster' and clusters %}
+                {% for cid, g in clusters.items() %}
+                    <h4 class="text-success mt-4">Cụm {{ cid }}</h4>
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-info">
+                            <tr>
+                                {% for col in g.columns %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in g.iterrows() %}
+                                <tr>
+                                    {% for val in row %}
+                                        <td>{{ val }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endfor %}
+            {% elif not result_df.empty %}
                 <table class="table table-bordered table-striped">
                     <thead class="table-primary">
                         <tr>
@@ -218,12 +244,10 @@ def index():
     </body>
     </html>
     """
-    return render_template_string(html, mode=mode, image=image, result_df=result_df, request=request)
-
+    return render_template_string(html, mode=mode, image=image, clusters=clusters, result_df=result_df, request=request)
 
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
-
 
 if __name__ == "__main__":
     print("Flask đang chạy tại http://127.0.0.1:5000")
