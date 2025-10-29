@@ -247,9 +247,14 @@ def index():
     return render_template_string(html, mode=mode, image=image, clusters=clusters, result_df=result_df, request=request)
 
 def open_browser():
-    webbrowser.open_new("http://127.0.0.1:5000")
+    webbrowser.open_new("http://127.0.0.1:8080")
 
 if __name__ == "__main__":
-    print("Flask đang chạy tại http://127.0.0.1:5000")
+    classify_by_film("APOLLO TEEN")
+
+    classify_by_category("Horror")
+
+    print("=> Xem trực quan tại web http://127.0.0.1:8080\n")
+
     threading.Timer(1.5, open_browser).start()
-    app.run(debug=True)
+    app.run(host="127.0.0.1", port=8080, debug=False, use_reloader=False)
